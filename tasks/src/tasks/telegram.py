@@ -3,7 +3,7 @@ import re
 from bs4 import BeautifulSoup, Tag
 from dataclasses import dataclass, field
 from datetime import datetime, UTC, timezone, timedelta, tzinfo
-from typing import List, Optional, Set
+from typing import Callable, List, Optional, Set
 from zoneinfo import ZoneInfo
 
 from .telegram_datatypes import Message
@@ -92,11 +92,23 @@ def is_system_timestamp_message(div: Tag) -> bool:
         return False
 
 
-def is_group_title_change_message(div: Tag) -> bool:
-    classes = div.attrs["class"]
-    text = text_from_tag(div)
+def is_service_message(div: Tag) -> bool:
+    return "service" in div.attrs["class"]
 
-    return "service" in classes and " changed group title to " in text
+
+def service_message_contains(*args: str) -> Callable[[Tag], bool]:
+    def f(tag: Tag) -> bool:
+        text = text_from_tag(tag)
+        return is_service_message(tag) and all([term in text for term in args])
+
+    return f
+
+
+def is_channel_title_chaged_message(div: Tag) -> bool:
+    text = text_from_tag(div)
+    return is_service_message(div) and (
+        "changed group title to «" in text or "Channel title changed to «" in text
+    )
 
 
 def parse_messages_file(filename: str) -> MessagesFile:
@@ -118,26 +130,40 @@ def parse_messages_file(filename: str) -> MessagesFile:
     for message_div in html_doc.find_all("div", class_="message"):
         message_id = message_div.attrs["id"]
 
-        # Skip system timestamp messages
-        if is_system_timestamp_message(message_div):
-            continue
-
         # Handle chat title changes
-        if is_group_title_change_message(message_div):
+        if is_channel_title_chaged_message(message_div):
             new_title = "".join(message_div.strings).strip().split("«")[1][:-1]
             messages_file.chat_titles.add(new_title)
             continue
 
+        # Messages to skip
+        messages_to_skip = [
+            is_system_timestamp_message,
+            service_message_contains("changed group photo"),
+            service_message_contains("changed topic icon to"),
+            service_message_contains("changed topic title to"),
+            service_message_contains("Channel photo changed"),
+            service_message_contains("Channel", "created"),
+            service_message_contains("converted a basic group to this supergroup "),
+            service_message_contains("converted this group to a supergroup"),
+            service_message_contains("created topic"),
+            service_message_contains("has set messages to auto-delete"),
+            service_message_contains("invited "),
+            service_message_contains("joined group by link from"),
+            service_message_contains("joined group by request"),
+            service_message_contains("pinned ", "this message"),
+            service_message_contains("removed"),
+            service_message_contains("scheduled a voice chat for"),
+            service_message_contains("started voice chat"),
+            service_message_contains("Voice chat"),
+        ]
+        if any([f(message_div) for f in messages_to_skip]):
+            continue
+
         date_div = message_div.find("div", class_="date")
         if not date_div:
-            # TODO May want to handle these
-            # Example:
-            # <div class="message service" id="message1">
-            #   <div class="body details">
-            #    Channel «TEST - CHAT» created
-            #   </div>
-            # </div>
-            continue
+            print(message_div.prettify())
+            raise Exception("Unable to find date div")
 
         raw_timestamp = message_div.find("div", class_="date").attrs["title"]
         iso_timestamp = parse_date_str(raw_timestamp)
