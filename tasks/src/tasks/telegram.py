@@ -1,9 +1,10 @@
-import re
 import os
+import re
+import sqlite3
 from bs4 import BeautifulSoup, Tag
 from dataclasses import dataclass, field
 from datetime import datetime, UTC, timezone, timedelta, tzinfo
-from typing import List
+from typing import List, Optional, Set
 from zoneinfo import ZoneInfo
 
 # TODO Handle signatures, which some messages have. Example:
@@ -23,7 +24,7 @@ class Message:
 @dataclass
 class MessagesFile:
     filename: str
-    title: str
+    chat_titles: Set[str] = field(default_factory=set)
     messages: List[Message] = field(default_factory=list)
 
 
@@ -97,25 +98,40 @@ def is_system_timestamp_message(div: Tag) -> bool:
         return False
 
 
+def is_group_title_change_message(div: Tag) -> bool:
+    classes = div.attrs["class"]
+    text = text_from_tag(div)
+
+    return "service" in classes and " changed group title to " in text
+
+
 def parse_messages_file(filename: str) -> MessagesFile:
+    messages_file = MessagesFile(filename=filename)
+
     with open(filename) as f:
         html = f.read()
 
     html_doc = BeautifulSoup(html, "html.parser")
 
-    # Extract the title
-    title_div = html_doc.find("div", class_="page_header")
-    if title_div is None:
-        raise Exception(f"Failed to find title in {filename}")
-    title = "".join(title_div.strings).strip()
+    # Extract the chat name
+    chat_title_div = html_doc.find("div", class_="page_header")
+    if chat_title_div is None:
+        raise Exception(f"Failed to find chat title in {filename}")
+    chat_title = "".join(chat_title_div.strings).strip()
 
-    messages_file = MessagesFile(filename=filename, title=title)
+    messages_file.chat_titles.add(chat_title)
 
     for message_div in html_doc.find_all("div", class_="message"):
         id = message_div.attrs["id"]
 
         # Skip system timestamp messages
         if is_system_timestamp_message(message_div):
+            continue
+
+        # Handle chat title changes
+        if is_group_title_change_message(message_div):
+            new_title = "".join(message_div.strings).strip().split("«")[1][:-1]
+            messages_file.chat_titles.add(new_title)
             continue
 
         date_div = message_div.find("div", class_="date")
@@ -187,9 +203,60 @@ def parse_messages_file(filename: str) -> MessagesFile:
     return messages_file
 
 
-def build(dataset_path, output_path):
+def initialize_database(cur: sqlite3.Cursor) -> None:
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS group_chats(
+            id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            PRIMARY KEY (id, title)
+        )
+    """
+    )
+
+
+def next_group_chats_id(cur: sqlite3.Cursor) -> int:
+    cur.execute("SELECT MAX(id) FROM group_chats")
+    max_id = cur.fetchone()[0]
+    return 0 if max_id is None else max_id + 1
+
+
+def insert_group_chats(cur: sqlite3.Cursor, titles: List[str]) -> int:
+    # This would be sketchy in a multi-user or multi-threaded environment but,
+    # for the purposes of this script, we shouldn't run into any race conditions
+    # related to the way we're finding the next id.
+
+    placeholders = ", ".join(list((len(titles) * "?")))
+    cur.execute(f"SELECT id FROM group_chats WHERE title IN ({placeholders})", titles)
+    ids = cur.fetchall()
+    if ids:
+        id = ids[0][0]
+    else:
+        id = next_group_chats_id(cur)
+
+    # TODO Batch these inserts
+    for title in titles:
+        with cur.connection as con:
+            con.execute(
+                "INSERT OR IGNORE INTO group_chats (id, title) VALUES (?, ?)",
+                (id, title),
+            )
+
+    return id
+
+
+def db_connect(db_name: str) -> sqlite3.Cursor:
+    cur = sqlite3.connect(db_name).cursor()
+    initialize_database(cur)
+    return cur
+
+
+def build(dataset_path: str, output_path: str) -> None:
+    cur = db_connect(output_path)
+
     chat_export_files = find_messages_files(dataset_path)
     print(f"Found {len(chat_export_files)} chat export files")
+
     for chat_export_file in chat_export_files:
         print(f"Processing '{chat_export_file}'")
         try:
@@ -197,8 +264,9 @@ def build(dataset_path, output_path):
         except Exception as e:
             print("Failed parsing", chat_export_file)
             raise e
-        print(messages_file.title)
-        for message in messages_file.messages:
-            print(f"- {message.sender} @ {message.timestamp}: {message.text}")
+
+        insert_group_chats(cur, list(messages_file.chat_titles))
 
     # TODO: finish
+
+    cur.connection.close()
