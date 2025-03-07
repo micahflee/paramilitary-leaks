@@ -122,7 +122,7 @@ def parse_messages_file(filename: str) -> MessagesFile:
     messages_file.chat_titles.add(chat_title)
 
     for message_div in html_doc.find_all("div", class_="message"):
-        id = message_div.attrs["id"]
+        message_id = message_div.attrs["id"]
 
         # Skip system timestamp messages
         if is_system_timestamp_message(message_div):
@@ -196,7 +196,7 @@ def parse_messages_file(filename: str) -> MessagesFile:
             message_text = ""
 
         message = Message(
-            id=id, timestamp=iso_timestamp, sender=sender, text=message_text
+            id=message_id, timestamp=iso_timestamp, sender=sender, text=message_text
         )
         messages_file.messages.append(message)
 
