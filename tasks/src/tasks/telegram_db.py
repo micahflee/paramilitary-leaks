@@ -22,6 +22,7 @@ def initialize_database(cur: sqlite3.Cursor) -> None:
         timestamp TEXT,
         sender TEXT,
         text TEXT,
+        filename TEXT,
         group_chat_id INTEGER
       )
     """
@@ -62,10 +63,17 @@ def insert_group_chats(cur: sqlite3.Cursor, titles: List[str]) -> int:
 
 
 def insert_messages(
-    cur: sqlite3.Cursor, group_chat_id: int, messages: List[Message]
+    cur: sqlite3.Cursor, group_chat_id: int, filename: str, messages: List[Message]
 ) -> None:
     params = [
-        (message.id, message.timestamp, message.sender, message.text, group_chat_id)
+        (
+            message.id,
+            message.timestamp,
+            message.sender,
+            message.text,
+            group_chat_id,
+            filename,
+        )
         for message in messages
     ]
     cur.executemany(
@@ -75,8 +83,9 @@ def insert_messages(
         timestamp,
         sender,
         text,
-        group_chat_id
-        ) VALUES (?, ?, ?, ?, ?)
+        group_chat_id,
+        filename
+        ) VALUES (?, ?, ?, ?, ?, ?)
     """,
         params,
     )

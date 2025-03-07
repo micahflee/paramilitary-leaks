@@ -231,7 +231,11 @@ def build(dataset_path: str, output_path: str) -> None:
             raise e
 
         group_chat_id = insert_group_chats(cur, list(messages_file.chat_titles))
-        insert_messages(cur, group_chat_id, messages_file.messages)
+
+        messages_file_path = chat_export_file.removeprefix(dataset_path)
+        messages_file_path = messages_file_path.removeprefix("/")
+
+        insert_messages(cur, group_chat_id, messages_file_path, messages_file.messages)
 
     # TODO: finish
 
