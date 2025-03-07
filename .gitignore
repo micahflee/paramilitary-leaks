@@ -169,3 +169,17 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# macOS specific
+.DS_Store
+._*
+
+# External scripts
+# telegram-export-converter.py
+
+# Test output
+**/test_output/
+**/test-output/
+
+# VS Code
+.vscode/
