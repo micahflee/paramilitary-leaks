@@ -5,7 +5,18 @@ description = ""
 authors = [{ name = "Micah Lee", email = "micah@micahflee.com" }]
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["click (>=8.1.8,<9.0.0)"]
+dependencies = [
+    "click (>=8.1.8,<9.0.0)",
+    "pandas (>=2.0.0)",
+    "pyarrow (>=14.0.0)",
+    "fastparquet (>=2023.0.0)",
+    "pillow (>=10.0.0)",
+    "requests (>=2.0.0)",
+    "openai (>=1.0.0)",  # Compatible with OpenRouter
+    "tqdm (>=4.0.0)",
+    "python-dotenv (>=1.0.0)",
+    "beautifulsoup4 (>=4.12.0)",  # For proper HTML parsing
+]
 
 [tool.poetry]
 packages = [{ include = "tasks", from = "src" }]
