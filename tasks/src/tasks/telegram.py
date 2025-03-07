@@ -6,20 +6,13 @@ from datetime import datetime, UTC, timezone, timedelta, tzinfo
 from typing import List, Optional, Set
 from zoneinfo import ZoneInfo
 
-from .telegram_db import db_connect, insert_group_chats
+from .telegram_datatypes import Message
+from .telegram_db import db_connect, insert_group_chats, insert_messages
 
 # TODO Handle signatures, which some messages have. Example:
 # <div class="signature details">
 #  trooper
 # </div>
-
-
-@dataclass
-class Message:
-    id: str
-    timestamp: str
-    sender: str
-    text: str
 
 
 @dataclass
@@ -218,7 +211,8 @@ def build(dataset_path: str, output_path: str) -> None:
             print("Failed parsing", chat_export_file)
             raise e
 
-        insert_group_chats(cur, list(messages_file.chat_titles))
+        group_chat_id = insert_group_chats(cur, list(messages_file.chat_titles))
+        insert_messages(cur, group_chat_id, messages_file.messages)
 
     # TODO: finish
 
