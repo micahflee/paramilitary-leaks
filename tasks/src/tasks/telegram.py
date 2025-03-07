@@ -218,7 +218,7 @@ def initialize_database(cur: sqlite3.Cursor) -> None:
 def next_group_chats_id(cur: sqlite3.Cursor) -> int:
     cur.execute("SELECT MAX(id) FROM group_chats")
     max_id = cur.fetchone()[0]
-    return 0 if max_id is None else max_id + 1
+    return 1 if max_id is None else max_id + 1
 
 
 def insert_group_chats(cur: sqlite3.Cursor, titles: List[str]) -> int:
