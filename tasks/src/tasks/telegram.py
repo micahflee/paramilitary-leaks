@@ -3,23 +3,16 @@ import re
 from bs4 import BeautifulSoup, Tag
 from dataclasses import dataclass, field
 from datetime import datetime, UTC, timezone, timedelta, tzinfo
-from typing import Callable, List, Optional, Set
+from typing import Callable, List
 from zoneinfo import ZoneInfo
 
-from .telegram_datatypes import Message
+from .telegram_datatypes import Message, MessagesFile
 from .telegram_db import db_connect, insert_group_chats, insert_messages
 
 # TODO Handle signatures, which some messages have. Example:
 # <div class="signature details">
 #  trooper
 # </div>
-
-
-@dataclass
-class MessagesFile:
-    filename: str
-    chat_titles: Set[str] = field(default_factory=set)
-    messages: List[Message] = field(default_factory=list)
 
 
 def is_messages_filename(filename: str) -> bool:
