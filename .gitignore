@@ -175,4 +175,4 @@ cython_debug/
 .DS_Store
 
 # Don't accidentally include generated DB files
-telegram_chats.db
+*.db
