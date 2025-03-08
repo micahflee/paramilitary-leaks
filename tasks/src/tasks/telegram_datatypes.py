@@ -8,6 +8,7 @@ class Message:
     timestamp: str
     sender: str
     text: str
+    media_note: str
     media_filename: str
 
 

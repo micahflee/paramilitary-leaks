@@ -176,6 +176,7 @@ def parse_messages_file(filename: str) -> MessagesFile:
         text_div = message_div.find("div", class_="text")
 
         message_text = ""
+        media_note = ""
         media_filename = ""
 
         if forwarded_div:
@@ -198,34 +199,40 @@ def parse_messages_file(filename: str) -> MessagesFile:
             elif media_wrap_div:
                 message_text += "Media message"
         elif media_wrap_div:
+            # If there's a text div, add the text
+            if text_div:
+                message_text = text_from_tag(text_div)
+            elif media_wrap_div:
+                message_text = "Media message"
+
             # Photos
             photo_a = media_wrap_div.find("a", class_="media_photo")
             if photo_a:
                 media_filename = photo_a.attrs["href"]
-                message_text = f"Media photo: {media_filename}"
+                media_note = "photo"
 
             # Images
             photo_wrap_a = media_wrap_div.find("a", class_="photo_wrap")
             if photo_wrap_a:
                 media_filename = photo_wrap_a.attrs["href"]
-                message_text = f"Media image: {media_filename}"
+                media_note = "image"
 
             # Video files
             video_file_wrap_a = media_wrap_div.find("a", class_="video_file_wrap")
             if video_file_wrap_a:
                 media_filename = video_file_wrap_a.attrs["href"]
-                message_text = f"Media video: {media_filename}"
+                media_note = "video"
 
             # Video messages
             media_video_a = media_wrap_div.find("a", class_="media_video")
             if media_video_a:
                 media_filename = media_video_a.attrs["href"]
-                message_text = f"Media video message: {media_filename}"
+                media_note = "video_message"
 
             # Polls
             poll_div = media_wrap_div.find("div", class_="media_poll")
             if poll_div:
-                message_text = "Media message poll: " + text_from_tag(
+                media_note = "poll: " + text_from_tag(
                     poll_div.find("div", class_="question")
                 )
 
@@ -233,37 +240,37 @@ def parse_messages_file(filename: str) -> MessagesFile:
             file_a = media_wrap_div.find("a", class_="media_file")
             if file_a:
                 media_filename = file_a.attrs["href"]
-                message_text = f"Media file: {media_filename}"
+                media_note = "file"
 
             # Audio files
             media_audio_file_a = media_wrap_div.find("a", class_="media_audio_file")
             if media_audio_file_a:
                 media_filename = media_audio_file_a.attrs["href"]
-                message_text = f"Media audio file: {media_filename}"
+                media_note = "audio"
 
             # Voice messages
             voice_a = media_wrap_div.find("a", class_="media_voice_message")
             if voice_a:
                 media_filename = voice_a.attrs["href"]
-                message_text = f"Media voice message: {media_filename}"
+                media_note = "voice_message"
 
             # Animated GIF (technically MP4s though)
             animated_a = media_wrap_div.find("a", class_="animated_wrap")
             if animated_a:
                 media_filename = animated_a.attrs["href"]
-                message_text = f"Media animated GIF: {media_filename}"
+                media_note = "animated_gif"
 
             # Stickers
             sticker_a = media_wrap_div.find("a", class_="sticker_wrap")
             if sticker_a:
                 media_filename = sticker_a.attrs["href"]
-                message_text = f"Media sticker: {media_filename}"
+                media_note = "sticker"
 
             # Contact
             contact_a = media_wrap_div.find("a", class_="media_contact")
             if contact_a:
                 media_filename = contact_a.attrs["href"]
-                message_text = f"Media contact: {media_filename}"
+                media_note = "contact"
 
             # Is the media not included?
             if media_filename == "":
@@ -273,16 +280,14 @@ def parse_messages_file(filename: str) -> MessagesFile:
                         "Not included, change data exporting settings to download"
                         in text_from_tag(description_div)
                     ):
-                        media_filename = ""
-                        message_text = "Media not included"
+                        media_note = "Media not included"
                     elif (
                         "Exceeds maximum size, change data exporting settings to download"
                         in text_from_tag(description_div)
                     ):
-                        media_filename = ""
-                        message_text = "Media exceeds maximum size"
+                        media_note = "Media exceeds maximum size"
 
-            if message_text == "" and poll_div is None:
+            if media_note == "" and poll_div is None:
                 print(media_wrap_div.prettify())
                 raise Exception("Unknown media message type")
         elif text_div:
@@ -296,6 +301,7 @@ def parse_messages_file(filename: str) -> MessagesFile:
             timestamp=iso_timestamp,
             sender=sender,
             text=message_text,
+            media_note=media_note,
             media_filename=media_filename,
         )
         messages_file.messages.append(message)
