@@ -5,7 +5,7 @@ description = ""
 authors = [{ name = "Micah Lee", email = "micah@micahflee.com" }]
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["click (>=8.1.8,<9.0.0)", "beautifulsoup4 (>=4.13.3,<5.0.0)"]
+dependencies = ["click (>=8.1.8,<9.0.0)", "beautifulsoup4 (>=4.13.3,<5.0.0)", "types-beautifulsoup4 (>=4.12.0.20250204,<5.0.0.0)"]
 
 [tool.poetry]
 packages = [{ include = "tasks", from = "src" }]

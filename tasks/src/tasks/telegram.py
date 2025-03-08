@@ -1,7 +1,6 @@
 import os
 import re
 from bs4 import BeautifulSoup, Tag
-from dataclasses import dataclass, field
 from datetime import datetime, UTC, timezone, timedelta, tzinfo
 from typing import Callable, List
 from zoneinfo import ZoneInfo
@@ -176,6 +175,9 @@ def parse_messages_file(filename: str) -> MessagesFile:
         reply_to_div = message_div.find("div", class_="reply_to")
         text_div = message_div.find("div", class_="text")
 
+        message_text = ""
+        media_filename = ""
+
         if forwarded_div:
             # TODO I'm not sure how to handle forwarded messages
             message_text = "Forwarded message"
@@ -196,12 +198,93 @@ def parse_messages_file(filename: str) -> MessagesFile:
             elif media_wrap_div:
                 message_text += "Media message"
         elif media_wrap_div:
-            # TODO I'm not sure how media messages should be handled
-            # TODO Do some media messages also include text?
-            message_text = "Media message"
-            if text_div:
-                text = text_from_tag(text_div)
-                message_text += f" {text}"
+            # Photos
+            photo_a = media_wrap_div.find("a", class_="media_photo")
+            if photo_a:
+                media_filename = photo_a.attrs["href"]
+                message_text = f"Media photo: {media_filename}"
+
+            # Images
+            photo_wrap_a = media_wrap_div.find("a", class_="photo_wrap")
+            if photo_wrap_a:
+                media_filename = photo_wrap_a.attrs["href"]
+                message_text = f"Media image: {media_filename}"
+
+            # Video files
+            video_file_wrap_a = media_wrap_div.find("a", class_="video_file_wrap")
+            if video_file_wrap_a:
+                media_filename = video_file_wrap_a.attrs["href"]
+                message_text = f"Media video: {media_filename}"
+
+            # Video messages
+            media_video_a = media_wrap_div.find("a", class_="media_video")
+            if media_video_a:
+                media_filename = media_video_a.attrs["href"]
+                message_text = f"Media video message: {media_filename}"
+
+            # Polls
+            poll_div = media_wrap_div.find("div", class_="media_poll")
+            if poll_div:
+                message_text = "Media message poll: " + text_from_tag(
+                    poll_div.find("div", class_="question")
+                )
+
+            # Files
+            file_a = media_wrap_div.find("a", class_="media_file")
+            if file_a:
+                media_filename = file_a.attrs["href"]
+                message_text = f"Media file: {media_filename}"
+
+            # Audio files
+            media_audio_file_a = media_wrap_div.find("a", class_="media_audio_file")
+            if media_audio_file_a:
+                media_filename = media_audio_file_a.attrs["href"]
+                message_text = f"Media audio file: {media_filename}"
+
+            # Voice messages
+            voice_a = media_wrap_div.find("a", class_="media_voice_message")
+            if voice_a:
+                media_filename = voice_a.attrs["href"]
+                message_text = f"Media voice message: {media_filename}"
+
+            # Animated GIF (technically MP4s though)
+            animated_a = media_wrap_div.find("a", class_="animated_wrap")
+            if animated_a:
+                media_filename = animated_a.attrs["href"]
+                message_text = f"Media animated GIF: {media_filename}"
+
+            # Stickers
+            sticker_a = media_wrap_div.find("a", class_="sticker_wrap")
+            if sticker_a:
+                media_filename = sticker_a.attrs["href"]
+                message_text = f"Media sticker: {media_filename}"
+
+            # Contact
+            contact_a = media_wrap_div.find("a", class_="media_contact")
+            if contact_a:
+                media_filename = contact_a.attrs["href"]
+                message_text = f"Media contact: {media_filename}"
+
+            # Is the media not included?
+            if media_filename == "":
+                description_div = media_wrap_div.find("div", class_="description")
+                if description_div:
+                    if (
+                        "Not included, change data exporting settings to download"
+                        in text_from_tag(description_div)
+                    ):
+                        media_filename = ""
+                        message_text = "Media not included"
+                    elif (
+                        "Exceeds maximum size, change data exporting settings to download"
+                        in text_from_tag(description_div)
+                    ):
+                        media_filename = ""
+                        message_text = "Media exceeds maximum size"
+
+            if message_text == "" and poll_div is None:
+                print(media_wrap_div.prettify())
+                raise Exception("Unknown media message type")
         elif text_div:
             message_text = text_from_tag(text_div)
         else:
@@ -209,7 +292,11 @@ def parse_messages_file(filename: str) -> MessagesFile:
             message_text = ""
 
         message = Message(
-            id=message_id, timestamp=iso_timestamp, sender=sender, text=message_text
+            id=message_id,
+            timestamp=iso_timestamp,
+            sender=sender,
+            text=message_text,
+            media_filename=media_filename,
         )
         messages_file.messages.append(message)
 
@@ -217,15 +304,14 @@ def parse_messages_file(filename: str) -> MessagesFile:
 
 
 def build(dataset_path: str, output_path: str) -> None:
-    
     # Create the output directory if it doesn't exist
     os.makedirs(output_path, exist_ok=True)
-    
+
     # Create a database file path within the output directory
     db_file_path = os.path.join(output_path, "telegram_chats.db")
-    
+
     print(f"Using database file: {db_file_path}")
-    
+
     cur = db_connect(db_file_path)
 
     chat_export_files = find_messages_files(dataset_path)

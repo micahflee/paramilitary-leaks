@@ -22,6 +22,7 @@ def initialize_database(cur: sqlite3.Cursor) -> None:
         timestamp TEXT,
         sender TEXT,
         text TEXT,
+        media_filename TEXT,
         filename TEXT,
         group_chat_id INTEGER
       )
@@ -71,6 +72,7 @@ def insert_messages(
             message.timestamp,
             message.sender,
             message.text,
+            message.media_filename,
             filename,
             group_chat_id,
         )
@@ -83,9 +85,10 @@ def insert_messages(
         timestamp,
         sender,
         text,
+        media_filename,
         filename,
         group_chat_id
-        ) VALUES (?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
     """,
         params,
     )
