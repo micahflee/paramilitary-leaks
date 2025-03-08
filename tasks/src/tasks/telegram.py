@@ -1,4 +1,5 @@
 import os
+import os.path
 import re
 from bs4 import BeautifulSoup, Tag
 from datetime import datetime, UTC, timezone, timedelta, tzinfo
@@ -7,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from .telegram_datatypes import Message, MessagesFile
 from .telegram_db import db_connect, insert_group_chats, insert_messages
+from .utils import make_rel_path
 
 # TODO Handle signatures, which some messages have. Example:
 # <div class="signature details">
@@ -309,7 +311,7 @@ def parse_messages_file(filename: str) -> MessagesFile:
     return messages_file
 
 
-def build(dataset_path: str, output_path: str) -> None:
+def build(dataset_path: str, output_path: str, absolute_paths: bool) -> None:
     # Create the output directory if it doesn't exist
     os.makedirs(output_path, exist_ok=True)
 
@@ -333,8 +335,10 @@ def build(dataset_path: str, output_path: str) -> None:
 
         group_chat_id = insert_group_chats(cur, list(messages_file.chat_titles))
 
-        messages_file_path = chat_export_file.removeprefix(dataset_path)
-        messages_file_path = messages_file_path.removeprefix("/")
+        if absolute_paths:
+            messages_file_path = os.path.abspath(chat_export_file)
+        else:
+            messages_file_path = make_rel_path(dataset_path, chat_export_file)
 
         insert_messages(cur, group_chat_id, messages_file_path, messages_file.messages)
 
