@@ -1,3 +1,4 @@
+import os.path
 import sqlite3
 from typing import List
 
@@ -74,7 +75,11 @@ def insert_messages(
             message.sender,
             message.text,
             message.media_note,
-            message.media_filename,
+            (
+                os.path.join(filename, message.media_filename)
+                if message.media_filename
+                else None
+            ),
             filename,
             group_chat_id,
         )

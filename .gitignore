@@ -173,3 +173,6 @@ cython_debug/
 # ignore _ osx files
 ._*
 .DS_Store
+
+# Don't accidentally include generated DB files
+telegram_chats.db
