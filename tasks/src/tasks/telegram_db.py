@@ -71,8 +71,8 @@ def insert_messages(
             message.timestamp,
             message.sender,
             message.text,
-            group_chat_id,
             filename,
+            group_chat_id,
         )
         for message in messages
     ]
@@ -83,8 +83,8 @@ def insert_messages(
         timestamp,
         sender,
         text,
-        group_chat_id,
-        filename
+        filename,
+        group_chat_id
         ) VALUES (?, ?, ?, ?, ?, ?)
     """,
         params,

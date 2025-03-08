@@ -217,7 +217,16 @@ def parse_messages_file(filename: str) -> MessagesFile:
 
 
 def build(dataset_path: str, output_path: str) -> None:
-    cur = db_connect(output_path)
+    
+    # Create the output directory if it doesn't exist
+    os.makedirs(output_path, exist_ok=True)
+    
+    # Create a database file path within the output directory
+    db_file_path = os.path.join(output_path, "telegram_chats.db")
+    
+    print(f"Using database file: {db_file_path}")
+    
+    cur = db_connect(db_file_path)
 
     chat_export_files = find_messages_files(dataset_path)
     print(f"Found {len(chat_export_files)} chat export files")
