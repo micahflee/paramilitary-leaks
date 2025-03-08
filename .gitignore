@@ -169,3 +169,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# ignore _ osx files
+._*
+.DS_Store
